@@ -31,7 +31,7 @@ _Dynamic = _Body.b2_dynamicBody;
 
 _Kinetic = _Body.b2_kineticBody;
 
-_Static = _Body.b2_StaticBody;
+_Static = _Body.b2_staticBody;
 
 World = (function() {
 
@@ -106,6 +106,59 @@ World = (function() {
     return this.world.SetDebugDraw(drawer);
   };
 
+  World.prototype.makeWalls = function(fill, top, bottom, right, left) {
+    var bh, bw, wall, wallBd;
+    if (fill == null) fill = '#999';
+    if (top == null) top = true;
+    if (bottom == null) bottom = true;
+    if (right == null) right = true;
+    if (left == null) left = true;
+    wall = new _PolygonShape();
+    wallBd = new _BodyDef();
+    bw = this.ww / this.scaleFactor;
+    bh = this.wh / this.scaleFactor;
+    if (left) {
+      new Rect(this, {
+        x: 0,
+        y: 50,
+        w: 10,
+        h: 100,
+        type: _Static,
+        fill: fill
+      });
+    }
+    if (right) {
+      new Rect(this, {
+        x: 100,
+        y: 50,
+        w: 10,
+        h: 100,
+        type: _Static,
+        fill: fill
+      });
+    }
+    if (top) {
+      new Rect(this, {
+        x: 50,
+        y: 0,
+        w: 100,
+        h: 10,
+        type: _Static,
+        fill: fill
+      });
+    }
+    if (bottom) {
+      return new Rect(this, {
+        x: 50,
+        y: 100,
+        w: 100,
+        h: 10,
+        type: _Static,
+        fill: fill
+      });
+    }
+  };
+
   World.prototype.render = function() {
     var animloop,
       _this = this;
@@ -133,6 +186,15 @@ World = (function() {
     }
     this.boxLayer.draw();
     return this.world.ClearForces();
+  };
+
+  World.prototype.setDebug = function(state) {
+    this.debug = state;
+    if (!this.debug) return this.debugLayer.clear();
+  };
+
+  World.prototype.toggleDebug = function() {
+    return this.setDebug(!this.debug);
   };
 
   return World;
@@ -182,7 +244,7 @@ Shape = (function(_super) {
       };
     }
     this.el = new this.type(c);
-    this.body = this.world.makeBody(c.x, c.y, c.a);
+    this.body = this.world.makeBody(c.x, c.y, c.a, c.type);
     this.world.makeFixture(this.body, this.shape());
     this.world.boxLayer.add(this.el);
     this.world.actors.push(this);

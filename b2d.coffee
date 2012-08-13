@@ -12,7 +12,7 @@ _DistanceJointDef = Box2D.Dynamics.Joints.b2DistanceJointDef
 _MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef
 _Dynamic = _Body.b2_dynamicBody
 _Kinetic = _Body.b2_kineticBody
-_Static = _Body.b2_StaticBody
+_Static = _Body.b2_staticBody
 
 class World
     constructor: (@ww, @wh, @scaleFactor=30, @gravity_x=0, @gravity_y=0, @angularDamping=0, @linearDamping=0, @restitution=.1, @density=2, @friction=.9, @velocity=300, @position=200, @debug=false) ->
@@ -56,6 +56,48 @@ class World
         drawer.SetFlags _DebugDraw.e_shapeBit | _DebugDraw.e_jointBit
         @world.SetDebugDraw drawer
 
+    makeWalls: (fill='#999', top=true, bottom=true, right=true, left=true) ->
+        wall = new _PolygonShape()
+        wallBd = new _BodyDef()
+        bw = @ww / @scaleFactor
+        bh = @wh / @scaleFactor
+        
+        if left
+            new Rect @,
+                x: 0
+                y: 50
+                w: 10
+                h: 100
+                type: _Static
+                fill: fill
+                 
+        if right
+            new Rect @,
+                x: 100
+                y: 50
+                w: 10
+                h: 100
+                type: _Static
+                fill: fill
+
+        if top
+            new Rect @,
+                x: 50
+                y: 0
+                w: 100
+                h: 10
+                type: _Static
+                fill: fill
+
+        if bottom
+            new Rect @,
+                x: 50
+                y: 100
+                w: 100
+                h: 10
+                type: _Static
+                fill: fill
+
     render: ->
         animloop = =>
             (window.webkitRequestAnimationFrame or window.mozRequestAnimationFrame) animloop
@@ -78,6 +120,13 @@ class World
         @boxLayer.draw()
         @world.ClearForces()
         
+    setDebug: (state) ->
+        @debug = state
+        if not @debug
+            @debugLayer.clear()
+            
+    toggleDebug: ->
+        @setDebug !@debug
 
 class Box2d
     constructor: (@world) ->
@@ -92,6 +141,8 @@ class Shape extends Box2d
         c.y = @yp c.y
         if not c.a
             c.a = 0
+        # if c.type is undefined
+            # c.type = _Dynamic
         if c.r
             @w = @h = @r = c.radius = @xp c.r
         else if c.w
@@ -107,7 +158,7 @@ class Shape extends Box2d
                 offset: [5, 5]
                 alpha: 0.6
         @el = new @type c
-        @body = @world.makeBody c.x, c.y, c.a
+        @body = @world.makeBody c.x, c.y, c.a, c.type
         @world.makeFixture @body, @shape()
 
         @world.boxLayer.add @el
@@ -115,13 +166,13 @@ class Shape extends Box2d
 
     b2d: (v) ->
         v / @world.scaleFactor
-        
+
     xp: (x) ->
         x * @world.ww / 100
-        
+
     yp: (y) ->
         y * @world.wh / 100
-          
+
     add: ->
 
 
