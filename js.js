@@ -2,15 +2,11 @@
 
 window.onload = function() {
   var actors, c, r, wh, world, ww, x, _i;
-  ww = wh = .2 * Math.min(window.innerWidth, window.innerHeight);
+  ww = wh = .25 * Math.min(window.innerWidth, window.innerHeight);
   actors = [];
   world = new World(ww, wh, 30, 0, 9);
   window.onkeydown = function(e) {
-    if (e.keyCode === 68) {
-      return world.toggleDebug();
-    } else {
-      return world.boxLayer.draw();
-    }
+    if (e.keyCode === 68) return world.toggleDebug();
   };
   world.makeWalls('#aaa');
   for (x = _i = 0; _i <= 8; x = ++_i) {
@@ -24,10 +20,12 @@ window.onload = function() {
     });
   }
   c = new Circle(world, {
-    x: 4,
-    y: 20,
+    x: 50,
+    y: 50,
     r: 2,
-    fill: '#eee'
+    fill: '#eee',
+    type: _MouseAttached
   });
+  window.world = world;
   return world.render();
 };

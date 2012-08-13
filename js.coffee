@@ -1,15 +1,11 @@
 window.onload = ->
-    # ww = window.innerWidth
-    # wh = window.innerHeight
-    ww = wh = .2 * Math.min window.innerWidth, window.innerHeight
+    ww = wh = .25 * Math.min window.innerWidth, window.innerHeight
 
     actors = []
     world = new World ww, wh, 30, 0, 9
     window.onkeydown = (e) ->
         if e.keyCode == 68  # d
             world.toggleDebug()
-        else
-            world.boxLayer.draw()
 
     world.makeWalls '#aaa'
 
@@ -23,10 +19,11 @@ window.onload = ->
             fill: '#ddd'
 
     c = new Circle world,
-        x: 4
-        y: 20
+        x: 50
+        y: 50
         r: 2
         fill: '#eee'
+        type: _MouseAttached
 
-
+    window.world = world
     world.render()

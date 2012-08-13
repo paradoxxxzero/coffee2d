@@ -11,12 +11,24 @@ _DebugDraw = Box2D.Dynamics.b2DebugDraw
 _DistanceJointDef = Box2D.Dynamics.Joints.b2DistanceJointDef
 _MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef
 _Dynamic = _Body.b2_dynamicBody
-_Kinetic = _Body.b2_kineticBody
+_Kinematic = _Body.b2_kinematicBody
 _Static = _Body.b2_staticBody
+_MouseAttached = 99
 
 class World
     constructor: (@ww, @wh, @scaleFactor=30, @gravity_x=0, @gravity_y=0, @angularDamping=0, @linearDamping=0, @restitution=.1, @density=2, @friction=.9, @velocity=300, @position=200, @debug=false) ->
         @world = new _World(new _Vec2(@gravity_x, @gravity_y), true)
+        @mouse =
+            x: 0
+            y: 0
+        @joints = []
+
+        window.document.body.onmousemove = (e) =>
+            @mouse.x = e.clientX
+            @mouse.y = e.clientY
+            for joint in @joints
+                joint.SetTarget new _Vec2 @mouse.x / @scaleFactor, @mouse.y / @scaleFactor
+
         @stage = new Kinetic.Stage
             container: "container"
             width: ww
@@ -38,6 +50,15 @@ class World
         bodyDef.angularDamping = if angularDamping != null then angularDamping else @angularDamping
         bodyDef.linearDamping = if linearDamping != null then linearDamping else @linearDamping
         @world.CreateBody(bodyDef)
+
+    makeMouseJoint: (target) ->
+        jointDef = new _MouseJointDef();
+        jointDef.bodyA = @world.GetGroundBody()
+        jointDef.bodyB = target.body
+        jointDef.target = target.body.GetPosition()
+        jointDef.collideConnected = true
+        jointDef.maxForce = 30000 * target.body.GetMass()
+        @joints.push @world.CreateJoint(jointDef)
 
     makeFixture: (body, shape, restitution=null, density=null, friction=null) ->
         fixtureDef = new _FixtureDef()
@@ -131,9 +152,8 @@ class World
 class Box2d
     constructor: (@world) ->
 
-    
-class Shape extends Box2d
 
+class Shape extends Box2d
     constructor: (world, c) ->
         super world
         
@@ -141,8 +161,10 @@ class Shape extends Box2d
         c.y = @yp c.y
         if not c.a
             c.a = 0
-        # if c.type is undefined
-            # c.type = _Dynamic
+        if c.type == _MouseAttached
+            mouseAttached = true
+            c.type = _Dynamic
+            
         if c.r
             @w = @h = @r = c.radius = @xp c.r
         else if c.w
@@ -160,6 +182,8 @@ class Shape extends Box2d
         @el = new @type c
         @body = @world.makeBody c.x, c.y, c.a, c.type
         @world.makeFixture @body, @shape()
+        if mouseAttached
+            @world.makeMouseJoint @
 
         @world.boxLayer.add @el
         @world.actors.push @
