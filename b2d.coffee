@@ -9,26 +9,36 @@ _PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 _CircleShape = Box2D.Collision.Shapes.b2CircleShape
 _DebugDraw = Box2D.Dynamics.b2DebugDraw
 _DistanceJointDef = Box2D.Dynamics.Joints.b2DistanceJointDef
+_RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
 _MouseJointDef = Box2D.Dynamics.Joints.b2MouseJointDef
 _Dynamic = _Body.b2_dynamicBody
 _Kinematic = _Body.b2_kinematicBody
 _Static = _Body.b2_staticBody
 _MouseAttached = 99
+WORLD = null
+
+ON = (w) ->
+    WORLD = w
 
 class World
-    constructor: (@ww, @wh, @scaleFactor=30, @gravity_x=0, @gravity_y=0, @angularDamping=0, @linearDamping=0, @restitution=.1, @density=2, @friction=.9, @velocity=300, @position=200, @debug=false) ->
+    constructor: (@ww, @wh, @scaleFactor=30, @gravity_x=0, @gravity_y=0, @angularDamping=0, @linearDamping=0, @restitution=.1, @density=2, @friction=.9, @velocity=300, @position=200, @frequencyHz=2, @dampingRatio=.2, @debug=false) ->
         @world = new _World(new _Vec2(@gravity_x, @gravity_y), true)
         @mouse =
             x: 0
             y: 0
-        @joints = []
+        @mouseJoints = []
 
-        window.document.body.onmousemove = (e) =>
+        window.document.body.addEventListener 'mousemove', ((e) =>
             @mouse.x = e.clientX
             @mouse.y = e.clientY
-            for joint in @joints
+            for joint in @mouseJoints
                 joint.SetTarget new _Vec2 @mouse.x / @scaleFactor, @mouse.y / @scaleFactor
+        ), false
 
+        window.addEventListener 'keydown', ((e) =>
+            if e.keyCode == 68  # d
+                @toggleDebug()
+        ), false
         @stage = new Kinetic.Stage
             container: "container"
             width: ww
@@ -51,14 +61,26 @@ class World
         bodyDef.linearDamping = if linearDamping != null then linearDamping else @linearDamping
         @world.CreateBody(bodyDef)
 
+    makeJoint: (bodyA, bodyB, type=_DistanceJointDef, length=null, anchorA, anchorB, frequencyHz=null, dampingRatio=null) ->
+        jointDef = new type()
+        jointDef.bodyA = bodyA.body
+        jointDef.bodyB = bodyB.body
+        jointDef.frequencyHz = if frequencyHz != null then frequencyHz else @frequencyHz
+        jointDef.dampingRatio = if dampingRatio != null then dampingRatio else @dampingRatio
+        jointDef.localAnchorA = if anchorA != null then anchorA else new _Vec2(0, 0)
+        jointDef.localAnchorB = if anchorB != null then anchorB else new _Vec2(0, 0)
+        jointDef.length = if length != null then length else 0
+        @world.CreateJoint(jointDef)
+
     makeMouseJoint: (target) ->
         jointDef = new _MouseJointDef();
         jointDef.bodyA = @world.GetGroundBody()
         jointDef.bodyB = target.body
+        jointDef.frequencyHz = 100
         jointDef.target = target.body.GetPosition()
         jointDef.collideConnected = true
-        jointDef.maxForce = 30000 * target.body.GetMass()
-        @joints.push @world.CreateJoint(jointDef)
+        jointDef.maxForce = 300 * target.body.GetMass()
+        @mouseJoints.push @world.CreateJoint(jointDef)
 
     makeFixture: (body, shape, restitution=null, density=null, friction=null) ->
         fixtureDef = new _FixtureDef()
@@ -77,45 +99,45 @@ class World
         drawer.SetFlags _DebugDraw.e_shapeBit | _DebugDraw.e_jointBit
         @world.SetDebugDraw drawer
 
-    makeWalls: (fill='#999', top=true, bottom=true, right=true, left=true) ->
+    makeWalls: (fill='#999', thickness=4, top=true, bottom=true, right=true, left=true) ->
         wall = new _PolygonShape()
         wallBd = new _BodyDef()
         bw = @ww / @scaleFactor
         bh = @wh / @scaleFactor
         
         if left
-            new Rect @,
+            new Rect
                 x: 0
                 y: 50
-                w: 10
+                w: thickness
                 h: 100
                 type: _Static
                 fill: fill
                  
         if right
-            new Rect @,
+            new Rect
                 x: 100
                 y: 50
-                w: 10
+                w: thickness
                 h: 100
                 type: _Static
                 fill: fill
 
         if top
-            new Rect @,
+            new Rect
                 x: 50
                 y: 0
                 w: 100
-                h: 10
+                h: thickness
                 type: _Static
                 fill: fill
 
         if bottom
-            new Rect @,
+            new Rect
                 x: 50
                 y: 100
                 w: 100
-                h: 10
+                h: thickness
                 type: _Static
                 fill: fill
 
@@ -151,10 +173,48 @@ class World
 
 class Box2d
     constructor: (@world) ->
+        if not @world and WORLD
+            @world = WORLD
+
+    b2d: (v) ->
+        v / @world.scaleFactor
+
+    xp: (x) ->
+        x * @world.ww / 100
+
+    yp: (y) ->
+        y * @world.wh / 100
+
+class Joint extends Box2d
+    constructor: (shapeA, shapeB, c, world) ->
+        super world
+        if c.anchorA != undefined
+            c.anchorA = new _Vec2 @b2d(@xp(c.anchorA.x)), @b2d(@yp(c.anchorA.y))
+        else
+            c.anchorA = null
+        if c.anchorB != undefined
+            c.anchorB = new _Vec2 @b2d(@xp(c.anchorB.x)), @b2d(@yp(c.anchorB.y))
+        else
+            c.anchorB = null
+
+        if c.length != undefined
+            c.length = @b2d(@yp(c.length))
+            console.log c.length
+        @world.makeJoint shapeA, shapeB, @type, c.length, c.anchorA, c.anchorB, c.frequencyHz, c.dampingRatio
+
+class DistanceJoint extends Joint
+    constructor: (shapeA, shapeB, config, world=null) ->
+        @type = _DistanceJointDef
+        super(shapeA, shapeB, config, world)
+
+class RevoluteJoint extends Joint
+    constructor: (shapeA, shapeB, config, world=null) ->
+        @type = _RevoluteJointDef
+        super(shapeA, shapeB, config, world)
 
 
 class Shape extends Box2d
-    constructor: (world, c) ->
+    constructor: (c, world) ->
         super world
         
         c.x = @xp c.x
@@ -188,22 +248,11 @@ class Shape extends Box2d
         @world.boxLayer.add @el
         @world.actors.push @
 
-    b2d: (v) ->
-        v / @world.scaleFactor
-
-    xp: (x) ->
-        x * @world.ww / 100
-
-    yp: (y) ->
-        y * @world.wh / 100
-
-    add: ->
-
 
 class Rect extends Shape
-    constructor: (world, config) ->
+    constructor: (config, world=null) ->
         @type = Kinetic.Rect
-        super(world, config)
+        super(config, world)
 
     shape: ->
         shape = new _PolygonShape()
@@ -211,9 +260,9 @@ class Rect extends Shape
         shape
 
 class Circle extends Shape
-    constructor: (world, config) ->
+    constructor: (config, world=null) ->
         @type = Kinetic.Circle
-        super(world, config)
+        super(config, world)
 
     shape: ->
         new _CircleShape(@b2d(@r))
